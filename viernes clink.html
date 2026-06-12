@@ -670,6 +670,26 @@ function editarGolpe(td) {
   });
 }
 
+function recalcularClinesBirdie(jugadores) {
+  const par = _courseConfig.par;
+  jugadores.forEach(function(j) { j.clinesBirdie = Array(18).fill(0); });
+  jugadores.forEach(function(j, jIdx) {
+    const golpes = parseGolpes(j.golpes);
+    golpes.forEach(function(g, h) {
+      if (g === null || g <= 0) return;
+      const p = par[h];
+      var eff = 0;
+      if (g <= p - 2) eff = -5;
+      else if (g === p - 1) eff = -1;
+      if (eff === 0) return;
+      jugadores[jIdx].clinesBirdie[h] += eff;
+      jugadores.forEach(function(_, k) {
+        if (k !== jIdx) jugadores[k].clinesBirdie[h] -= eff;
+      });
+    });
+  });
+}
+
 function saveScore(cell) {
   const jIdx = parseInt(cell.dataset.jidx);
   const hoyo = parseInt(cell.dataset.hoyo);
@@ -677,34 +697,11 @@ function saveScore(cell) {
   const jugadores = cargarDatos();
   if (!jugadores[jIdx]) return;
 
-  const par = _courseConfig.par[hoyo];
-  const prevGolpe = parseGolpes(jugadores[jIdx].golpes)[hoyo];
-  const newGolpe  = (!isNaN(val) && val > 0) ? val : null;
-
-  // Efecto: birdie = -1/+1, eagle o mejor = -5/+5
-  function efecto(g) {
-    if (g === null || g <= 0) return 0;
-    if (g <= par - 2) return -5;  // eagle o mejor
-    if (g === par - 1) return -1; // birdie
-    return 0;
-  }
-  const prevEfecto = efecto(prevGolpe);
-  const newEfecto  = efecto(newGolpe);
-  const delta = newEfecto - prevEfecto;
-
-  if (delta !== 0) {
-    jugadores.forEach(function(j, k) {
-      j.clinesBirdie = parseClines(j.clinesBirdie);
-      if (k === jIdx) {
-        j.clinesBirdie[hoyo] += delta;
-      } else {
-        j.clinesBirdie[hoyo] -= delta;
-      }
-    });
-  }
-
   jugadores[jIdx].golpes = parseGolpes(jugadores[jIdx].golpes);
-  jugadores[jIdx].golpes[hoyo] = newGolpe;
+  jugadores[jIdx].golpes[hoyo] = (!isNaN(val) && val > 0) ? val : null;
+
+  recalcularClinesBirdie(jugadores);
+
   guardarDatos(jugadores);
   renderScorecard();
 }
